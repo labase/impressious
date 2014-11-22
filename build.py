@@ -52,7 +52,7 @@ def initialize(project):
 @task
 def post_docs(project, logger):
     from subprocess import call
-    result = call("curl -X POST http://readthedocs.org/build/impressious")
+    result = call(['curl', '-X', 'POST', 'http://readthedocs.org/build/impressious'])
     logger.info("Commit hook @ http://readthedocs.org/build/impressious: %d" % result)
 
 
