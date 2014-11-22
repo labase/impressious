@@ -22,7 +22,7 @@ authors = [Author('Carlo Oliveira', 'carlo@ufrj.br')]
 license = 'GNU General Public License v2 (GPLv2)'
 summary = "Um aplicativo para apresentar slides organizados em uma tela 2D."
 version = __version__
-default_task = ['analyze', 'publish', 'buid_docs']
+default_task = ['analyze', 'publish', 'buid_docs', 'post_docs']
 
 
 @init
