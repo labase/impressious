@@ -28,9 +28,8 @@ __version__ = "0.1.0"
 from .core import Impressious
 
 
-def main(doc, svg):
+def main(browser):
     print('Impressious '+__version__)
-    impressious = Impressious(doc)
-    #impressious.build_base(doc, svg)
+    impressious = Impressious(browser)
     impressious.build_base()
     return impressious
