@@ -29,17 +29,33 @@ from impressious.core import Impressious, LOREM, DIM
 from impressious import main
 import sys
 if sys.version_info[0] == 2:
-    from mock import MagicMock
+    from mock import MagicMock, patch
 else:
-    from unittest.mock import MagicMock
+    from unittest.mock import MagicMock, patch
 WIKI = "https://activufrj.nce.ufrj.br/rest/wiki/activlets/Provas_2014_2"
-WCONT = "<h1>Carlo Emmanoel Tolla de Oliveira</h1>"
-
+WCONT = '{"status": 0, "result": {"wikidata": {"conteudo": "<h1>Carlo Emmanoel Tolla de Oliveira<\/h1><ol>' \
+    '<li>Society is intrinsically<\/li><li> responsible for capitalism; says Sartre;<\/li>' \
+    '<li>Society is intrinsically<\/li><li> responsible for capitalism; says Sartre;<\/li>' \
+    '<li>Society is intrinsically<\/li><li> responsible for capitalism; says Sartre;<\/li>' \
+    '<li>Society is intrinsically<\/li><li> responsible for capitalism; says Sartre;<\/li>' \
+    '<li>Society is intrinsically<\/li><li> responsible for capitalism; says Sartre;<\/li>' \
+    '</ol>"}}}'
+ICONT = 'Society is intrinsically'
 
 class ImpressiousTest(unittest.TestCase):
 
     def setUp(self):
         self.gui = MagicMock(name="gui")
+        modules = {
+            'urllib': self.gui,
+            'urllib.request': self.gui.request,
+            'urllib.request.urlopen': self.gui.request.urlopen
+        }
+        uop = MagicMock(name="file")
+        self.gui.request.urlopen.return_value = (uop, 0, 0)
+        uop.read = MagicMock(name="data", return_value=WCONT)
+        self.module_patcher = patch.dict('sys.modules', modules)
+        self.module_patcher.start()
         self.gui.__le__ = MagicMock(name="APPEND")
         self.gui.side_effect = lambda *a, **k: self.gui
         self.gui.svg = self.gui.g = self.gui
@@ -74,7 +90,7 @@ class ImpressiousTest(unittest.TestCase):
         """le um texto da wiki"""
         self.app.build_base()
         w = self.app.read_wiki(WIKI)
-        self.assertIn(WCONT, w, "Wiki is not as expected: %s" % w)
+        self.assertIn(ICONT, w, "Wiki is not as expected: %s" % w)
 
     def test_parse_from_wiki(self):
         """separa um texto da wiki em itens"""
