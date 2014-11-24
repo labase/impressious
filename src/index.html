@@ -8,15 +8,14 @@
         <script type="text/javascript" src="../../lib/Brython2.2.1/brython.js"></script>
         <script type="text/python">
             from impressious import main
-            from browser import svg, document, html
+            from browser import svg, document, html, ajax
+            WIKI = "http://www.corsproxy.com/activufrj.nce.ufrj.br/rest/wiki/activlets/Provas_2014_2"
+
             class Browser:
-                svg, document, html = svg, document, html
+                svg, document, html, ajax = svg, document, html, ajax
             i = main(Browser)
-            i.slide()
-            i.slide()
-            i.slide()
-            i.slide()
-            i.slide()
+            i.load_slides_from_wiki(i.parse_wiki(i.read_wiki(WIKI)))
+
         </script>
     </head>
     <body onLoad="brython(1, {static_stdlib_import: true})" class="main">

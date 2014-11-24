@@ -25,13 +25,15 @@ Verifica a funcionalidade do cliente web.
 
 """
 import unittest
-from impressious.core import Impressious, LOREM
+from impressious.core import Impressious, LOREM, DIM
 from impressious import main
 import sys
 if sys.version_info[0] == 2:
     from mock import MagicMock
 else:
     from unittest.mock import MagicMock
+WIKI = "https://activufrj.nce.ufrj.br/rest/wiki/activlets/Provas_2014_2"
+WCONT = "<h1>Carlo Emmanoel Tolla de Oliveira</h1>"
 
 
 class ImpressiousTest(unittest.TestCase):
@@ -55,7 +57,7 @@ class ImpressiousTest(unittest.TestCase):
         self.app.build_base()
         g = self.app.slide()
         self.gui.svg.g.assert_called_with()
-        self.gui.svg.foreignObject.assert_called_with(LOREM, x=10, y=10, width=240, height=180)
+        self.gui.svg.foreignObject.assert_called_with(x=10, y=10, width=DIM[0], height=DIM[1])
         self.assertEqual(self.gui, g, "Group is not as expected: %s" % g)
 
     def test_two_slide(self):
@@ -64,9 +66,31 @@ class ImpressiousTest(unittest.TestCase):
         g = self.app.slide()
         g = self.app.slide()
         self.gui.svg.g.assert_called_with()
-        self.gui.svg.rect.assert_called_with(color='grey', y=10, width=240, x=510, height=180, opacity=0.2)
+        dx = DIM[0] * 2 + 30
+        self.gui.svg.rect.assert_called_with(color='grey', y=10, width=DIM[0], x=dx, height=DIM[1], opacity=0.2)
         self.assertEqual(self.gui, g, "Group is not as expected: %s" % g)
 
+    def test_read_from_wiki(self):
+        """le um texto da wiki"""
+        self.app.build_base()
+        w = self.app.read_wiki(WIKI)
+        self.assertIn(WCONT, w, "Wiki is not as expected: %s" % w)
+
+    def test_parse_from_wiki(self):
+        """separa um texto da wiki em itens"""
+        self.app.build_base()
+        w = self.app.read_wiki(WIKI)
+        l = self.app.parse_wiki(w)
+        self.assertEqual(10, len(l), "list is not as expected: %s" % l)
+        self.assertNotIn('<li', l[0], "item is not as expected: %s" % l[0])
+
+    def test_load_slides_from_list(self):
+        """separa um texto da wiki em itens"""
+        self.app.build_base()
+        w = self.app.read_wiki(WIKI)
+        l = self.app.parse_wiki(w)
+        self.assertEqual(10, len(l), "list is not as expected: %s" % l)
+        self.assertNotIn('<li', l[0], "item is not as expected: %s" % l[0])
 
 if __name__ == '__main__':
     unittest.main()

@@ -26,7 +26,7 @@ Módulo que define o editor de apresentações no espaço 2D
 """
 LOREM = "Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy" \
         " nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat."
-DIM = (240, 180)
+DIM = (180, 180)
 
 
 class Impressious:
@@ -41,6 +41,7 @@ class Impressious:
         self.gui = navegador
         self.svg = navegador.svg
         self.html = navegador.html
+        self.ajax = navegador.ajax
         self.svgcanvas = None
         self.dim = (800, 600)
 
@@ -83,9 +84,52 @@ class Impressious:
         w, h = dimension or DIM
         group = self.svg.g()
         rect = self.svg.rect(x=x, y=y, width=w, height=h, color="grey", opacity=0.2)
-        area = self.svg.foreignObject(text, x=x, y=y, width=w, height=h)
+        area = self.svg.foreignObject(x=x, y=y, width=w, height=h)
+        area.html = text
         group <= area
         group <= rect
         self.svgcanvas <= group
         Impressious.SLIDES.append(group)
         return group
+
+    def read_wiki(self, url):
+        """Lê uma página da wiki com uma chamada REST
+
+        :param url: Url REST da wiki a ser lida
+        :return: COnteúdo da página wiki
+        """
+        import urllib.request
+        import json
+
+        #_fp, _, _ = urllib.request.urlopen(url)
+        _fp = urllib.request.urlopen(url)
+        print(_fp)
+        if isinstance(_fp, tuple):
+            _fp = _fp[0]
+            _data = _fp.read()
+        else:
+            _data = _fp.read().decode('utf8')
+        print(_data)
+        _json = json.loads(str(_data))
+        if "result" in _json and "wikidata" in _json["result"]\
+                and "conteudo" in _json["result"]["wikidata"]:
+            return _json["result"]["wikidata"]["conteudo"]
+        else:
+            return ""
+
+    def parse_wiki(self, html_text):
+        """Separa slides e items do texto
+
+        :param html_text: texto em html contendo h1 e li
+        :return: lista de itens na página
+        """
+        conteudo = html_text.split('</h1>')[1]
+        return [item.split("</li>")[0] for item in conteudo.split("<li>")[1:]]
+
+    def load_slides_from_wiki(self, item_list):
+        """Cria slides e items do texto
+
+        :param item_list: lista de itens a serem convertidos em slides
+        :return: lista de slides criados
+        """
+        return [self.slide(item) for item in item_list]
