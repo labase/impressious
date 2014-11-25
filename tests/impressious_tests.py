@@ -25,7 +25,7 @@ Verifica a funcionalidade do cliente web.
 
 """
 import unittest
-from impressious.core import Impressious, LOREM, DIM
+from impressious.core import Impressious, Slide, LOREM, DIM
 from impressious import main
 import sys
 if sys.version_info[0] == 2:
@@ -41,6 +41,7 @@ WCONT = '{"status": 0, "result": {"wikidata": {"conteudo": "<h1>Carlo Emmanoel T
     '<li>Society is intrinsically<\/li><li> responsible for capitalism; says Sartre;<\/li>' \
     '</ol>"}}}'
 ICONT = 'Society is intrinsically'
+
 
 class ImpressiousTest(unittest.TestCase):
 
@@ -74,17 +75,17 @@ class ImpressiousTest(unittest.TestCase):
         g = self.app.slide()
         self.gui.svg.g.assert_called_with()
         self.gui.svg.foreignObject.assert_called_with(x=10, y=10, width=DIM[0], height=DIM[1])
-        self.assertEqual(self.gui, g, "Group is not as expected: %s" % g)
+        self.assertIsInstance(g, Slide, "Slide is not as expected: %s" % g)
 
     def test_two_slide(self):
         """cria dois slides com texto"""
         self.app.build_base()
-        g = self.app.slide()
+        self.app.slide()
         g = self.app.slide()
         self.gui.svg.g.assert_called_with()
         dx = DIM[0] * 2 + 30
         self.gui.svg.rect.assert_called_with(color='grey', y=10, width=DIM[0], x=dx, height=DIM[1], opacity=0.2)
-        self.assertEqual(self.gui, g, "Group is not as expected: %s" % g)
+        self.assertIsInstance(g, Slide, "Slide is not as expected: %s" % g)
 
     def test_read_from_wiki(self):
         """le um texto da wiki"""

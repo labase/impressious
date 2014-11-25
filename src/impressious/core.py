@@ -29,6 +29,43 @@ LOREM = "Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonu
 DIM = (180, 180)
 
 
+class Slide:
+    """Um slide com texto que pode ser selecionado e a geometria editada
+
+    :param navegador: Referência ao módulo navegador do Brython
+    :param canvas: àrea onde o slide deve ser desenhado
+    :param pai: Referência ao objeto pai que possui esse slide
+    """
+
+    def __init__(self, navegador, canvas, pai):
+        self.gui = navegador
+        self.svg = navegador.svg
+        self.html = navegador.html
+        self.svgcanvas = canvas
+        self.pai = pai
+        self.rect = self.area = self.group = None
+
+    def slide(self, text=LOREM, position=None, dimension=None):
+        """Cria um novo slide com o texto, posição e dimensão dadas
+
+        :param text: O texto a ser colocado no slide
+        :param position: Posição do slide (x, y) - automática se None
+        :param dimension: Dimensão  do slide (w, h) - automática se None
+        :return: Referência para o objeto slide
+        """
+        x, y = position or self.pai.new_position()
+        w, h = dimension or DIM
+        self.group = self.svg.g()
+        self.rect = self.svg.rect(x=x, y=y, width=w, height=h, color="grey", opacity=0.2)
+        self.area = self.svg.foreignObject(x=x, y=y, width=w, height=h)
+        self.area.html = text
+        self.group <= self.area
+        self.group <= self.rect
+        self.svgcanvas <= self.group
+        Impressious.SLIDES.append(self)
+        return self
+
+
 class Impressious:
     """Classe que define o editor de apresentações no espaço 2D
 
@@ -54,10 +91,9 @@ class Impressious:
         self.dim = width, height
         self.svgcanvas = self.svg.svg(width=width, height=height)
         python_div <= self.svgcanvas
-        #self.slide()
         return self
 
-    def _new_position(self):
+    def new_position(self):
         """Aloca uma posição automática para um novo slide
 
         :return: a posição (x, y)
@@ -79,18 +115,7 @@ class Impressious:
         :param dimension: Dimensão  do slide (w, h) - automática se None
         :return: Referência para o objeto slide
         """
-        #slide = self.svg.switch()
-        x, y = position or self._new_position()
-        w, h = dimension or DIM
-        group = self.svg.g()
-        rect = self.svg.rect(x=x, y=y, width=w, height=h, color="grey", opacity=0.2)
-        area = self.svg.foreignObject(x=x, y=y, width=w, height=h)
-        area.html = text
-        group <= area
-        group <= rect
-        self.svgcanvas <= group
-        Impressious.SLIDES.append(group)
-        return group
+        return Slide(self.gui, self.svgcanvas, self).slide(text, position, dimension)
 
     def read_wiki(self, url):
         """Lê uma página da wiki com uma chamada REST
@@ -100,8 +125,6 @@ class Impressious:
         """
         import urllib.request
         import json
-
-        #_fp, _, _ = urllib.request.urlopen(url)
         _fp = urllib.request.urlopen(url)
         print(_fp)
         if isinstance(_fp, tuple):
