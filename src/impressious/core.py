@@ -156,3 +156,20 @@ class Impressious:
         :return: lista de slides criados
         """
         return [self.slide(item) for item in item_list]
+
+    def cursor(self):
+        """Cria o cursor geométrico
+
+        :return: o elemento grupo do cursor
+        """
+        group = self.svg.g(Id="cursor")
+        rect = self.svg.rect(x=-35, y=-35, width=70, height=70, style={"opacity": 0.5, "fill": "#b3b3b3"})
+        diamond = self.svg.rect(x=-35, y=-35, width=70, height=70, transform="rotate (45 0 0)", style={"opacity": 0.5, "fill": "#b3b3b3"})
+        circle = self.svg.circle(cx=0, cy=0, r=38, style={"opacity": 0.5, "fill": "#ffffff"})
+        eye = self.svg.circle(cx=0, cy=0, r=20, style={"opacity": 0.5, "fill": "#999999"})
+        group <= rect
+        group <= diamond
+        group <= circle
+        group <= eye
+        self.svgcanvas <= group
+        return group
