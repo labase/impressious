@@ -43,7 +43,7 @@ class Slide:
         self.html = navegador.html
         self.svgcanvas = canvas
         self.pai = pai
-        self.rect = self.area = self.group = None
+        self.rect = self.area = self.group = self.position = self.dimension = None
 
     def slide(self, text=LOREM, position=None, dimension=None):
         """Cria um novo slide com o texto, posição e dimensão dadas
@@ -53,17 +53,33 @@ class Slide:
         :param dimension: Dimensão  do slide (w, h) - automática se None
         :return: Referência para o objeto slide
         """
-        x, y = position or self.pai.new_position()
-        w, h = dimension or DIM
-        self.group = self.svg.g()
-        self.rect = self.svg.rect(x=x, y=y, width=w, height=h, color="grey", opacity=0.2)
-        self.area = self.svg.foreignObject(x=x, y=y, width=w, height=h)
+        x, y = self.position = position or self.pai.new_position()
+        w, h = self.dimension = dimension or DIM
+        self.group = self.svg.g(transform='translate (%d, %d)' % self.position)
+        self.rect = self.svg.rect(x=0, y=0, width=w, height=h, color="grey", opacity=0.2)
+        self.area = self.svg.foreignObject(x=0, y=0, width=w, height=h)
         self.area.html = text
         self.group <= self.area
         self.group <= self.rect
         self.svgcanvas <= self.group
         Impressious.SLIDES.append(self)
+        self.group.onclick = self._select
         return self
+
+    def move(self, x, y):
+        (ox, oy), (w, h) = self.position, self.dimension
+        self.position = (x-w//2, y-h//2)
+        self.group.setAttribute('transform', 'translate (%d %d)' % self.position)
+
+    def _select(self, event):
+        """Cria um cursor ao ser selecionado
+
+        :param event: Dados do mouse quando clicado
+        :return: Nada
+        """
+        (x, y), (w, h) = self.position, self.dimension
+        center = x+w//2, y+w//2
+        self.pai.build_cursor(self, center)
 
 
 class Impressious:
@@ -79,7 +95,7 @@ class Impressious:
         self.svg = navegador.svg
         self.html = navegador.html
         self.ajax = navegador.ajax
-        self.svgcanvas = None
+        self.svgcanvas = self.cursor = None
         self.dim = (800, 600)
 
     def build_base(self, width=800, height=600):
@@ -123,17 +139,23 @@ class Impressious:
         :param url: Url REST da wiki a ser lida
         :return: COnteúdo da página wiki
         """
-        import urllib.request
-        import json
-        _fp = urllib.request.urlopen(url)
-        print(_fp)
-        if isinstance(_fp, tuple):
-            _fp = _fp[0]
-            _data = _fp.read()
-        else:
-            _data = _fp.read().decode('utf8')
-        print(_data)
-        _json = json.loads(str(_data))
+        FAKEC = '<h1></h1>' + '<li>Lê uma página da wiki com uma chamada REST</li>' * 10
+        FAKE = dict(result=dict(wikidata=dict(conteudo=FAKEC)))
+        try:
+            import urllib.request
+            import json
+            _fp = urllib.request.urlopen(url)
+            print(_fp)
+            if isinstance(_fp, tuple):
+                _fp = _fp[0]
+                _data = _fp.read()
+            else:
+                _data = _fp.read().decode('utf8')
+            print(_data)
+            _json = json.loads(str(_data))
+        except Exception as ex:
+            _json = FAKE
+
         if "result" in _json and "wikidata" in _json["result"]\
                 and "conteudo" in _json["result"]["wikidata"]:
             return _json["result"]["wikidata"]["conteudo"]
@@ -157,19 +179,58 @@ class Impressious:
         """
         return [self.slide(item) for item in item_list]
 
-    def cursor(self):
+    def build_cursor(self, slide, center):
         """Cria o cursor geométrico
 
         :return: o elemento grupo do cursor
         """
-        group = self.svg.g(Id="cursor")
+        self.cursor = Cursor(self.svgcanvas, self.svg, slide, center)
+        self.build_cursor = lambda s, p:\
+            self.cursor.setAttribute(s, 'transform', "translate (%d %d)" % p)
+
+
+class Cursor:
+
+    def _cursor_start_move(self, event, mover):
+        self._move = mover
+        self._mouse_pos = (event.x, event.y)
+
+    def _move_slide(self, event):
+        """Movimenta o cursor geométrico
+
+        :return: o elemento grupo do cursor
+        """
+        self._mouse_pos = (event.x, event.y)
+        self.cursor.setAttribute('transform', "translate (%d %d)" % (event.x, event.y))
+        self.slide.move(event.x, event.y)
+
+    def __init__(self, canvas, svg, slide, position=(0, 0)):
+        """Cria o cursor geométrico
+
+        :return: o elemento grupo do cursor
+        """
+        x, y = position
+        self.svg = svg
+        self.slide = slide
+        group = self.cursor = self.svg.g(Id="cursor", transform="translate (%d %d)" % position)
         rect = self.svg.rect(x=-35, y=-35, width=70, height=70, style={"opacity": 0.5, "fill": "#b3b3b3"})
-        diamond = self.svg.rect(x=-35, y=-35, width=70, height=70, transform="rotate (45 0 0)", style={"opacity": 0.5, "fill": "#b3b3b3"})
+        diamond = self.svg.rect(x=-35, y=-35, width=70, height=70, transform="rotate (45 0 0)",
+                                style={"opacity": 0.5, "fill": "#b3b3b3"})
         circle = self.svg.circle(cx=0, cy=0, r=38, style={"opacity": 0.5, "fill": "#ffffff"})
         eye = self.svg.circle(cx=0, cy=0, r=20, style={"opacity": 0.5, "fill": "#999999"})
         group <= rect
         group <= diamond
         group <= circle
         group <= eye
-        self.svgcanvas <= group
-        return group
+        canvas <= group
+
+        def end_move():
+            self._move = lambda e: None
+
+        eye.onmousedown = lambda e: self._cursor_start_move(e, self._move_slide)
+        group.onmousemove = lambda e: self._move(e)
+        group.onmouseup = lambda e: end_move()
+
+    def setAttribute(self, slide, attr, value):
+        self.slide = slide
+        self.cursor.setAttribute(attr, value)

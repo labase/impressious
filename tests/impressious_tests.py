@@ -44,6 +44,9 @@ ICONT = 'Society is intrinsically'
 
 
 class ImpressiousTest(unittest.TestCase):
+    class Evento:
+        x = y = 42
+    EV = Evento()
 
     def setUp(self):
         self.gui = MagicMock(name="gui")
@@ -62,6 +65,7 @@ class ImpressiousTest(unittest.TestCase):
         self.gui.svg = self.gui.g = self.gui
         self.gui.document.__getitem__.return_value = self.gui
         self.app = Impressious(self.gui)
+        Impressious.SLIDES = []
 
     def test_main(self):
         """cria um canvas svg"""
@@ -73,8 +77,8 @@ class ImpressiousTest(unittest.TestCase):
         """cria um slide com texto"""
         self.app.build_base()
         g = self.app.slide()
-        self.gui.svg.g.assert_called_with()
-        self.gui.svg.foreignObject.assert_called_with(x=10, y=10, width=DIM[0], height=DIM[1])
+        self.gui.svg.g.assert_called_with(transform='translate (10, 10)')
+        self.gui.svg.foreignObject.assert_called_with(x=0, y=0, width=DIM[0], height=DIM[1])
         self.assertIsInstance(g, Slide, "Slide is not as expected: %s" % g)
 
     def test_two_slide(self):
@@ -82,9 +86,8 @@ class ImpressiousTest(unittest.TestCase):
         self.app.build_base()
         self.app.slide()
         g = self.app.slide()
-        self.gui.svg.g.assert_called_with()
-        dx = DIM[0] * 2 + 30
-        self.gui.svg.rect.assert_called_with(color='grey', y=10, width=DIM[0], x=dx, height=DIM[1], opacity=0.2)
+        dx = 200  # DIM[0] * 2 + 30
+        self.gui.svg.g.assert_called_with(transform='translate (200, 10)')
         self.assertIsInstance(g, Slide, "Slide is not as expected: %s" % g)
 
     def test_read_from_wiki(self):
@@ -108,6 +111,42 @@ class ImpressiousTest(unittest.TestCase):
         l = self.app.parse_wiki(w)
         self.assertEqual(10, len(l), "list is not as expected: %s" % l)
         self.assertNotIn('<li', l[0], "item is not as expected: %s" % l[0])
+
+    def test_select_slide_and_show_cursor(self):
+        """Seleciona um slide e mostra o cursor"""
+        self.app.build_base()
+        l = self.app.load_slides_from_wiki(['Society is intrinsically<\/li>'])
+        self.assertEqual(1, len(l), "list is not as expected: %s" % l)
+        self.app.SLIDES[0]._select(None)
+        self.gui.svg.rect.assert_called_with(
+            width=70, x=-35, style={'opacity': 0.5, 'fill': '#b3b3b3'}, transform='rotate (45 0 0)', height=70, y=-35)
+        self.gui.svg.g.assert_called_with(transform="translate (100 100)", Id='cursor')
+
+    def test_select_slide_and_switch_cursor(self):
+        """Seleciona um slide e troca o cursor que estava em outro slide"""
+        self.app.build_base()
+        l = self.app.load_slides_from_wiki(['Society is intrinsically<\/li>','Society is intrinsically<\/li>'])
+        self.assertEqual(2, len(l), "list is not as expected: %s" % l)
+        self.app.SLIDES[0]._select(None)
+        self.app.SLIDES[1]._select(None)
+        self.gui.svg.g.assert_called_with(transform="translate (100 100)", Id='cursor')
+        self.gui.svg.g.setAttribute.assert_called_with('transform', "translate (290 100)")
+        #assert self.gui.svg.g.transform == 'translate (290 100)', self.gui.svg.g.transform
+
+    def test_select_slide_move(self):
+        """Seleciona um slide e move o slide junto com o cursor"""
+        self.app.build_base()
+        l = self.app.load_slides_from_wiki(['Society is intrinsically'])
+        self.app.SLIDES[0]._select(None)
+        self.app.cursor._cursor_start_move(self.EV, self.app.cursor._move_slide)
+        self.assertEqual(self.app.cursor._mouse_pos, (42, 42))
+        self.EV.x, self.EV.y = (84, 84)
+
+        self.app.cursor._move(self.EV)
+        self.assertEqual(self.app.cursor._mouse_pos, (84, 84), "but mouse pos is %d %d " % self.app.cursor._mouse_pos)
+        self.assertEqual(self.app.SLIDES[0].position, (-6, -6), "but slide pos is %d %d " % self.app.SLIDES[0].position)
+        self.gui.svg.g.setAttribute.assert_called_with('transform', "translate (-6 -6)")
+        #self.assertEqual(self.gui.svg.g.mock_calls, [], "but slide pos is %s " % self.gui.svg.g.mock_calls)
 
 if __name__ == '__main__':
     unittest.main()
