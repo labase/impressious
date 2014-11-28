@@ -66,7 +66,32 @@ class Slide:
         self.group.onclick = self._select
         return self
 
+    def widen(self, delta):
+        """Enlarguesse o slide
+
+        :param delta: aumento na largura
+        """
+        w, h = self.dimension
+        w, h = self.dimension = (w+delta, h)
+        self.rect.setAttribute('width', '%d' % w)
+        self.area.setAttribute('width', '%d' % w)
+
+    def heighten(self, delta):
+        """Enaltece o slide
+
+        :param delta: aumento na largura
+        """
+        w, h = self.dimension
+        w, h = self.dimension = (w, h+delta)
+        self.rect.setAttribute('height', '%d' % h)
+        self.area.setAttribute('height', '%d' % h)
+
     def move(self, x, y):
+        """Movimenta o slide para uma nova posição
+
+        :param x: nova posição x
+        :param y: nova posição y
+        """
         (ox, oy), (w, h) = self.position, self.dimension
         self.position = (x-w//2, y-h//2)
         self.group.setAttribute('transform', 'translate (%d %d)' % self.position)
@@ -78,7 +103,7 @@ class Slide:
         :return: Nada
         """
         (x, y), (w, h) = self.position, self.dimension
-        center = x+w//2, y+w//2
+        center = x+w//2, y+h//2
         self.pai.build_cursor(self, center)
 
 
@@ -190,6 +215,13 @@ class Impressious:
 
 
 class Cursor:
+    """Cursor usado para modificar geometricamente um slide
+
+    :param canvas: elemento svg do DOM
+    :param svg: módulo svg do browser brython
+    :param slide: o slide para o qual o cursor foi alocado
+    :param position: a posição onde o cursor deve ser colocado
+    """
 
     def _cursor_start_move(self, event, mover):
         self._move = mover
@@ -197,40 +229,60 @@ class Cursor:
 
     def _move_slide(self, event):
         """Movimenta o cursor geométrico
-
-        :return: o elemento grupo do cursor
         """
         self._mouse_pos = (event.x, event.y)
         self.cursor.setAttribute('transform', "translate (%d %d)" % (event.x, event.y))
         self.slide.move(event.x, event.y)
 
-    def __init__(self, canvas, svg, slide, position=(0, 0)):
-        """Cria o cursor geométrico
-
-        :return: o elemento grupo do cursor
+    def _widen_slide(self, event):
+        """Enlarguesse o cursor geométrico
         """
+        self._mouse_pos, delta = (event.x, event.y), event.x - self._mouse_pos[0]
+        self.cursor.setAttribute('transform', "translate (%d %d)" % (event.x, event.y))
+        self.slide.widen(delta)
+
+    def _heighten_slide(self, event):
+        """Enaltece o cursor geométrico
+        """
+        self._mouse_pos, delta = (event.x, event.y), event.y - self._mouse_pos[1]
+        self.cursor.setAttribute('transform', "translate (%d %d)" % (event.x, event.y))
+        self.slide.heighten(delta)
+
+    def __init__(self, canvas, svg, slide, position=(0, 0)):
         x, y = position
         self.svg = svg
         self.slide = slide
+        t45 = "rotate (45 0 0)"
         group = self.cursor = self.svg.g(Id="cursor", transform="translate (%d %d)" % position)
-        rect = self.svg.rect(x=-35, y=-35, width=70, height=70, style={"opacity": 0.5, "fill": "#b3b3b3"})
-        diamond = self.svg.rect(x=-35, y=-35, width=70, height=70, transform="rotate (45 0 0)",
-                                style={"opacity": 0.5, "fill": "#b3b3b3"})
-        circle = self.svg.circle(cx=0, cy=0, r=38, style={"opacity": 0.5, "fill": "#ffffff"})
+        ne = self.svg.rect(x=0, y=-35, width=35, height=35, style={"opacity": 0.5, "fill": "#b3b3b3"})
+        se = self.svg.rect(x=0, y=0, width=35, height=35, style={"opacity": 0.5, "fill": "#b3b3b3"})
+        sw = self.svg.rect(x=-35, y=0, width=35, height=35, style={"opacity": 0.5, "fill": "#b3b3b3"})
+        nw = self.svg.rect(x=-35, y=-35, width=35, height=35, style={"opacity": 0.5, "fill": "#b3b3b3"})
+        ww = self.svg.rect(x=0, y=-35, width=35, height=35, transform=t45, style={"opacity": 0.5, "fill": "#b3b3b3"})
+        ss = self.svg.rect(x=0, y=0, width=35, height=35, transform=t45, style={"opacity": 0.5, "fill": "#b3b3b3"})
+        ee = self.svg.rect(x=-35, y=0, width=35, height=35, transform=t45, style={"opacity": 0.5, "fill": "#b3b3b3"})
+        nn = self.svg.rect(x=-35, y=-35, width=35, height=35, transform=t45, style={"opacity": 0.5, "fill": "#b3b3b3"})
+        circle = self.svg.circle(cx=0, cy=0, r=35, style={"opacity": 0.5, "fill": "#ffffff"})
         eye = self.svg.circle(cx=0, cy=0, r=20, style={"opacity": 0.5, "fill": "#999999"})
-        group <= rect
-        group <= diamond
-        group <= circle
-        group <= eye
+        for element in [ne, se, sw, nw, nn, ee, ss, ww, circle, eye]:
+            group <= element
         canvas <= group
 
         def end_move():
             self._move = lambda e: None
-
+        end_move()
         eye.onmousedown = lambda e: self._cursor_start_move(e, self._move_slide)
+        ee.onmousedown = ww.onmousedown = lambda e: self._cursor_start_move(e, self._widen_slide)
+        ss.onmousedown = nn.onmousedown = lambda e: self._cursor_start_move(e, self._heighten_slide)
         group.onmousemove = lambda e: self._move(e)
         group.onmouseup = lambda e: end_move()
 
     def setAttribute(self, slide, attr, value):
+        """Muda o slide corrente e um atributo do slide
+
+        :param slide: o novo slide que é controlado pelo cursor
+        :param attr: o nome do atributo que vai mudado no cursor
+        :param value: o valor novo do atributo
+        """
         self.slide = slide
         self.cursor.setAttribute(attr, value)
