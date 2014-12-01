@@ -134,6 +134,34 @@ class Impressious:
         python_div <= self.svgcanvas
         return self
 
+    def _process_arguments(self, gui):
+
+        def set_prop(value):
+            self.props = self.json.loads(value)['result']
+            self.pmenu = Menu(self.gui, 'ad_objeto', menu=self.props, prefix=MENUITEM, command='', extra=[MARKER])
+            print('set_prop', self.props)
+
+        def set_scene(value):
+            self.scene = self.json.loads(value)['result']
+            self.smenu = Menu(self.gui, 'ad_cenario', menu=self.scenes, prefix=MENUITEM, command='')
+            print('set_scene', self.scene)
+
+        args = self.win.location.search
+        if '=' in args:
+            self.args = {k: v for k, v in [c.split('=') for c in args[1:].split('&')]}
+            props = self.properties = self.args.setdefault('props', 'jeppeto')
+            self.folder = self.args.setdefault('folder', '')
+            scenes = self.args.setdefault('scenes', 'EICA')
+            self.gui.send(STUDIO % (props, 1), record=set_prop, method="GET")
+            self.gui.send(STUDIO % (scenes, 2), record=set_scene, method="GET")
+            print(self.args, props, STUDIO % (props, 1))
+            if 'game' in self.args:
+                gui.start_a_game(self.args['game'])
+            else:
+                gui.show_front_menu()
+        else:
+            gui.show_front_menu()
+
     def new_position(self):
         """Aloca uma posição automática para um novo slide
 
@@ -286,3 +314,72 @@ class Cursor:
         """
         self.slide = slide
         self.cursor.setAttribute(attr, value)
+
+MENUPX = "https://activufrj.nce.ufrj.br/static/desenhos/img%s.svg"
+EL, ED = [], {}
+MENU_DEFAULT = ['ad_objeto', 'ad_cenario', 'wiki', 'navegar', 'jeppeto']
+
+
+class Menu:
+    MENU = {}
+
+    def __init__(self, gui, originator, menu=None, command='menu_',
+                 prefix=MENUPX, event="click", activate=False, extra=EL):
+        self.gui, self.item, self.prefix = gui, originator, prefix
+        self.command, self.prefix, self.activated = command, prefix, activate
+        self.originator = originator
+        self.book = self.gui.doc["book"]
+        self.menu_ad_cenario = self.menu___ROOT__ = self.menu_ad_objeto = self.menu_ad
+        self.menu_wiki = self.menu_jeppeto = self.menu_ad
+        self.target, self.id, self.menu = self, '', None
+        menu and self.build_menu(menu, extra=extra)
+
+    def build_item(self, item, source, menu):
+        #print('build_item', self.prefix, item, menu, menu.menu)
+        #pr = self.prefix % item
+        kwargs = dict(o_Id="m_"+item, o_src=source, s_padding='2px', o_title=item)
+        menu_item = self.gui.img(menu.menu, **kwargs)
+        menu_item.bind("click", menu.click)
+        if self.activated and (item not in Menu.MENU):
+            #print('activated', item, menu_item)
+            Menu.MENU[item] = Menu(self.gui, item, command='submenu_')
+        return menu_item
+
+    def build_menu(self, menu=MENU_DEFAULT, display="none", extra=EL):
+        #print ("build_menu:", self.gui.div)
+        Menu.MENU[self.originator] = self
+        self.menu = self.gui.div(
+            self.gui.doc, s_position='absolute', s_top='50%', s_left='50%',
+            s_display=display, s_border='1px solid #d0d0d0', o_Id=self.item)
+        #print ('build_menu', [self.comm[kwargs['o_click']] for kwargs in menu])
+        [self.build_item(item, EXTRA % item, self) for item in extra]
+        [self.build_item(item, self.prefix % item, self) for item in menu]
+        return self.menu
+
+    def click(self, event):
+        event.stopPropagation()
+        event.preventDefault()
+        self.menu.style.display = 'none'
+        menu_id = event.target.id[2:]
+        item = menu_id in Menu.MENU and menu_id or self.item
+        obj = menu_id in Menu.MENU and Menu.MENU[menu_id] or self
+        #self.activate(self.command or self.item, event, obj)
+        print('click:', menu_id, self.command + item, self.menu.Id, self.prefix)  # , self.item, item)
+        self.activate(self.command + item, event, obj)
+
+    def ad_template(self, template):
+        FAKESVG = '<g>%s</g>' % ['<rect style="fill:red" x="%d" y="9" width="9" height="9" />' % x for x in range(10)]
+        try:
+            import urllib.request
+            import json
+            _fp = urllib.request.urlopen(MENUPX % template.id[3:])
+            print(_fp)
+            _data = _fp.read()
+            _tag = self.gui.document.createElement('g')
+            _tag.text = _data
+
+        except Exception as ex:
+            _data = FAKESVG
+
+        _tag = document.createElement('g')
+        _tag.text = _data

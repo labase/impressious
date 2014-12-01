@@ -29,7 +29,7 @@ O editor apenas apresenta um conjunto de textos em uma matriz.
 Melhoramentos
 =============
 
-Versão para uso do Google Application Engine e PyBuilder.
+Versão para uso do PyBuilder.
 
 Melhoramento #1
 ***************
@@ -45,9 +45,9 @@ Nenhum conserto notável.
 Questões e Problemas Conhecidos
 ===============================
 
-A jogabilidade atual não é boa, deve ser trocada por drag and drop.
+O visual ainda está muito simples.
 
-Uma nova versão deve ser feita usando o engenho Crafty.
+O movimento do cursor ainda está pouco intuitivo.
 
 Lançamentos Anteriores e Posteriores
 ====================================
