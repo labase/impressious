@@ -27,6 +27,7 @@ Módulo que define o editor de apresentações no espaço 2D
 LOREM = "Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonummy" \
         " nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat."
 DIM = (180, 180)
+ICON = "wysiwyg-classic-icons.jpg"
 
 
 class Slide:
@@ -120,7 +121,7 @@ class Impressious:
         self.svg = navegador.svg
         self.html = navegador.html
         self.ajax = navegador.ajax
-        self.svgcanvas = self.cursor = None
+        self.svgcanvas = self.cursor = self.menu = None
         self.dim = (800, 600)
 
     def build_base(self, width=800, height=600):
@@ -132,6 +133,16 @@ class Impressious:
         self.dim = width, height
         self.svgcanvas = self.svg.svg(width=width, height=height)
         python_div <= self.svgcanvas
+        self.menu = self.html.DIV()
+        self.menu.style.backgroundImage = "url(%s)" % ICON
+        self.menu.style.position = "absolute"
+        self.menu.style.top = -9
+        self.menu.style.left = 0
+        self.menu.style.width = 30
+        self.menu.style.height = 40
+        self.menu.style.backgroundPosition = "-161px -50px"
+        self.menu.onclick = lambda e: self.gui.alert("OI")
+        python_div <= self.menu
         return self
 
     def _process_arguments(self, gui):

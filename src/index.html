@@ -8,11 +8,11 @@
         <script type="text/javascript" src="../../lib/Brython2.2.1/brython.js"></script>
         <script type="text/python">
             from impressious import main
-            from browser import svg, document, html, ajax
+            from browser import svg, document, html, ajax, alert
             WIKI = "http://www.corsproxy.com/activufrj.nce.ufrj.br/rest/wiki/activlets/Provas_2014_2"
 
             class Browser:
-                svg, document, html, ajax = svg, document, html, ajax
+                svg, document, html, ajax, alert = svg, document, html, ajax, alert
             i = main(Browser)
             i.load_slides_from_wiki(i.parse_wiki(i.read_wiki(WIKI)))
 
