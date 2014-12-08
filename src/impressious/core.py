@@ -28,6 +28,7 @@ LOREM = "Lorem ipsum dolor sit amet, consectetuer adipiscing elit, sed diam nonu
         " nibh euismod tincidunt ut laoreet dolore magna aliquam erat volutpat."
 DIM = (180, 180)
 ICON = "wysiwyg-classic-icons.jpg"
+GUI = None
 
 
 class Slide:
@@ -117,11 +118,13 @@ class Impressious:
 
     def __init__(self, navegador):
         """Constroi os objetos iniciais. """
-        self.gui = navegador
+        global GUI
+        self.gui = GUI = navegador
         self.svg = navegador.svg
         self.html = navegador.html
         self.ajax = navegador.ajax
-        self.svgcanvas = self.cursor = self.menu = None
+        self.svgcanvas = self.cursor = self.icon = self.menu = self.back = None
+        self.load = self.save = lambda ev: None
         self.dim = (800, 600)
 
     def build_base(self, width=800, height=600):
@@ -133,16 +136,14 @@ class Impressious:
         self.dim = width, height
         self.svgcanvas = self.svg.svg(width=width, height=height)
         python_div <= self.svgcanvas
-        self.menu = self.html.DIV()
-        self.menu.style.backgroundImage = "url(%s)" % ICON
-        self.menu.style.position = "absolute"
-        self.menu.style.top = -9
-        self.menu.style.left = 0
-        self.menu.style.width = 30
-        self.menu.style.height = 40
-        self.menu.style.backgroundPosition = "-161px -50px"
-        self.menu.onclick = lambda e: self.gui.alert("OI")
-        python_div <= self.menu
+        self.back = self.svg.g()
+        menu = dict(main=dict(load={"img%s" % gab: self.load for gab in range(50)}, save=self.save))
+        #self.menu = Menu()
+        self.svgcanvas <= self.back
+        self.icon = Sprite(ICON, 37, 43, 12, 10, 2).sprites(main=[4, 1], save=[0, 0], load=[0, 2])
+        self.icon["main"].render(python_div, 2, 0, self.ad_template, "img50")
+        self.icon["save"].render(python_div, 2, 40)
+        self.icon["load"].render(python_div, 2, 80)
         return self
 
     def _process_arguments(self, gui):
@@ -252,6 +253,26 @@ class Impressious:
         self.build_cursor = lambda s, p:\
             self.cursor.setAttribute(s, 'transform', "translate (%d %d)" % p)
 
+    def ad_template(self, template):
+        FAKESVG = '<g>%s</g>' % ['<rect style="fill:red" x="%d" y="9" width="9" height="9" />' % x for x in range(10)]
+        try:
+            import urllib.request
+            import json
+            _fp = urllib.request.urlopen(MENUFPX % template.target.id[3:])
+            print("ad_template", _fp)
+            if isinstance(_fp, tuple):
+                _fp = _fp[0]
+            _data = _fp.read()
+
+        except Exception as ex:
+            _data = FAKESVG
+        #_data = _data.split('<g')[1].split('</g>')[0]
+        #close_g_tag = _data.find(">")
+        #_data = _data[close_g_tag+1:]
+        print("ad_template _data", _data)
+
+        self.back.html = _data
+
 
 class Cursor:
     """Cursor usado para modificar geometricamente um slide
@@ -311,8 +332,10 @@ class Cursor:
             self._move = lambda e: None
         end_move()
         eye.onmousedown = lambda e: self._cursor_start_move(e, self._move_slide)
-        ee.onmousedown = ww.onmousedown = lambda e: self._cursor_start_move(e, self._widen_slide)
-        ss.onmousedown = nn.onmousedown = lambda e: self._cursor_start_move(e, self._heighten_slide)
+        ee.onmousedown = lambda e: self._cursor_start_move(e, self._widen_slide)
+        ww.onmousedown = lambda e: self._cursor_start_move(e, self._widen_slide)
+        ss.onmousedown = lambda e: self._cursor_start_move(e, self._heighten_slide)
+        nn.onmousedown = lambda e: self._cursor_start_move(e, self._heighten_slide)
         group.onmousemove = lambda e: self._move(e)
         group.onmouseup = lambda e: end_move()
 
@@ -326,7 +349,8 @@ class Cursor:
         self.slide = slide
         self.cursor.setAttribute(attr, value)
 
-MENUPX = "https://activufrj.nce.ufrj.br/static/desenhos/img%s.svg"
+MENUPX = "http://www.corsproxy.com/activufrj.nce.ufrj.br/static/desenhos/img%s.png"
+MENUFPX = "http://www.corsproxy.com/activufrj.nce.ufrj.br/static/desenhos/img%s.svg"
 EL, ED = [], {}
 MENU_DEFAULT = ['ad_objeto', 'ad_cenario', 'wiki', 'navegar', 'jeppeto']
 
@@ -334,14 +358,12 @@ MENU_DEFAULT = ['ad_objeto', 'ad_cenario', 'wiki', 'navegar', 'jeppeto']
 class Menu:
     MENU = {}
 
-    def __init__(self, gui, originator, menu=None, command='menu_',
+    def __init__(self, gui, originator=None, menu=None, command='menu_',
                  prefix=MENUPX, event="click", activate=False, extra=EL):
         self.gui, self.item, self.prefix = gui, originator, prefix
         self.command, self.prefix, self.activated = command, prefix, activate
-        self.originator = originator
+        self.originator = originator or "__ROOT__"
         self.book = self.gui.doc["book"]
-        self.menu_ad_cenario = self.menu___ROOT__ = self.menu_ad_objeto = self.menu_ad
-        self.menu_wiki = self.menu_jeppeto = self.menu_ad
         self.target, self.id, self.menu = self, '', None
         menu and self.build_menu(menu, extra=extra)
 
@@ -378,19 +400,60 @@ class Menu:
         print('click:', menu_id, self.command + item, self.menu.Id, self.prefix)  # , self.item, item)
         self.activate(self.command + item, event, obj)
 
-    def ad_template(self, template):
-        FAKESVG = '<g>%s</g>' % ['<rect style="fill:red" x="%d" y="9" width="9" height="9" />' % x for x in range(10)]
-        try:
-            import urllib.request
-            import json
-            _fp = urllib.request.urlopen(MENUPX % template.id[3:])
-            print(_fp)
-            _data = _fp.read()
-            _tag = self.gui.document.createElement('g')
-            _tag.text = _data
 
-        except Exception as ex:
-            _data = FAKESVG
+class Sprite:
+    """Gerencia uma coleção de sprites a partir de uma folha com imagens
 
-        _tag = document.createElement('g')
-        _tag.text = _data
+    :param img: Url da folha de imagem
+    :param dx: espaçamento x de cada sprite
+    :param dy: espaçamento y de cada sprite
+    :param offx: inicio em x da coleção de sprites (default 0)
+    :param offy: inicio em y da coleção de sprites (default 0)
+    :param padx: desconto em x de cada imagem do sprite (default 0)
+    :param pady: desconto em y de cada imagem do sprite (default 0)
+    :param x: posição em x na matriz de sprites deste sprite (default 0)
+    :param y: posição em y na matriz de sprites deste sprite (default 0)
+    :param Id: identificador do sprite no DOM ou no dicionário SPRITE
+    """
+    SPRITE = {}  # Coleção de sprites
+
+    def __init__(self, img, dx, dy, offx=0, offy=0, padx=0, pady=0, x=0, y=0, Id=""):
+        self.img, self.dx, self.dy, self.offx, self.offy, self.padx, self.pady = img, dx, dy, offx, offy, padx, pady
+        self.x, self.y, self.Id = x, y, Id
+        self.menu = None
+
+    def sprites(self, **kwargs):
+        """Recorta sprites da imagem e registra no dicionário SPRITE.
+
+        :param kwargs: lista de argumentos da forma nome_do_sprite=[sprite_x, sprite_y]
+        :return: o dicionário SPRITE
+        """
+        def cut_sprite(name, x, y):
+            return Sprite(self.img, self.dx, self.dy, self.offx, self.offy, self.padx, self.pady, x, y, name)
+
+        Sprite.SPRITE.update({name: cut_sprite(name, *coordinates) for name, coordinates in kwargs.items()})
+        return Sprite.SPRITE
+
+    def render(self, element, x=0, y=0, action=None, Id=""):
+        """Desenha um sprite no elemento dado
+
+        :param element: elemento onde o sprite vai ser desenhado
+        :param x: posição x no elemento onde o sprite vai ser desenhado (default 0)
+        :param y:  posição y no elemento onde o sprite vai ser desenhado (default 0)
+        :param action: função aser chamada quando o sprite for clicado (default nenhuma)
+        :param Id: identificador do sprite no DOM ou no dicionário SPRITE
+        :return:
+        """
+        self.menu = GUI.html.DIV(Id=Id or "spr%s" % self.Id)
+        self.menu.style.backgroundImage = "url(%s)" % self.img
+        self.menu.style.position = "absolute"
+        top = self.offy + self.y*self.dy + self.pady
+        left = self.offx + self.x*self.dx + self.padx
+        print(self.img, self.dx, self.dy, self.offx, self.offy, self.padx, self.pady, x, y, top, left)
+        self.menu.style.top = y
+        self.menu.style.left = x
+        self.menu.style.width = self.dx - 2*self.padx
+        self.menu.style.height = self.dy - 2*self.pady
+        self.menu.style.backgroundPosition = "-%dpx -%dpx" % (left, top)
+        self.menu.onclick = action if action else lambda ev: None
+        element <= self.menu
