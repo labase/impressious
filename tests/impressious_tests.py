@@ -61,8 +61,11 @@ class ImpressiousTest(unittest.TestCase):
         self.module_patcher = patch.dict('sys.modules', modules)
         self.module_patcher.start()
         self.gui.__le__ = MagicMock(name="APPEND")
+        self.gui.svg = self.gui.svg.svg = self.gui
         self.gui.side_effect = lambda *a, **k: self.gui
-        self.gui.svg = self.gui.g = self.gui
+        self.gui.g = MagicMock(name="gui_g")
+        self.gui.g.__le__ = MagicMock(name="APPENDG")
+        self.gui.g.side_effect = lambda *a, **k: self.gui.g
         self.gui.document.__getitem__.return_value = self.gui
         self.app = Impressious(self.gui)
         Impressious.SLIDES = []
@@ -72,7 +75,11 @@ class ImpressiousTest(unittest.TestCase):
         """cria um canvas svg"""
         imp = main(self.gui)
         self.assertIsInstance(imp, Impressious, "Intância não criada")
-        self.gui.svg.assert_called_with(width=800, height=600)
+        self.gui.g.assert_called_with()
+        self.gui.assert_called_with(width=800, height=600)
+        self.assertEqual(imp.gui, self.gui)
+        self.assertIsInstance(imp.svgcanvas, MagicMock, "Svgcanvas is not as expected: %s" % imp.svgcanvas)
+        imp.svgcanvas.__le__.assert_called_with(self.gui.html.DIV())
 
     def test_slide(self):
         """cria um slide com texto"""

@@ -137,9 +137,9 @@ class Impressious:
         self.svgcanvas = self.svg.svg(width=width, height=height)
         python_div <= self.svgcanvas
         self.back = self.svg.g()
+        self.svgcanvas <= self.back
         menu = dict(main=dict(load={"img%s" % gab: self.load for gab in range(50)}, save=self.save))
         #self.menu = Menu()
-        self.svgcanvas <= self.back
         self.icon = Sprite(ICON, 37, 43, 12, 10, 2).sprites(main=[4, 1], save=[0, 0], load=[0, 2])
         self.icon["main"].render(python_div, 2, 0, self.ad_template, "img50")
         self.icon["save"].render(python_div, 2, 40)
@@ -358,7 +358,12 @@ MENU_DEFAULT = ['ad_objeto', 'ad_cenario', 'wiki', 'navegar', 'jeppeto']
 class Menu:
     MENU = {}
 
-    def __init__(self, gui, originator=None, menu=None, command='menu_',
+    def __init__(self, sprites, originator=None, **menu):
+        self.sprites, self.originator = sprites, originator
+        Id = self.Id = menu.keys()[0]
+        self.action = self.build_item(Id, menu[Id])
+
+    def __no__init__(self, gui, originator=None, menu=None, command='menu_',
                  prefix=MENUPX, event="click", activate=False, extra=EL):
         self.gui, self.item, self.prefix = gui, originator, prefix
         self.command, self.prefix, self.activated = command, prefix, activate
@@ -367,16 +372,8 @@ class Menu:
         self.target, self.id, self.menu = self, '', None
         menu and self.build_menu(menu, extra=extra)
 
-    def build_item(self, item, source, menu):
-        #print('build_item', self.prefix, item, menu, menu.menu)
-        #pr = self.prefix % item
-        kwargs = dict(o_Id="m_"+item, o_src=source, s_padding='2px', o_title=item)
-        menu_item = self.gui.img(menu.menu, **kwargs)
-        menu_item.bind("click", menu.click)
-        if self.activated and (item not in Menu.MENU):
-            #print('activated', item, menu_item)
-            Menu.MENU[item] = Menu(self.gui, item, command='submenu_')
-        return menu_item
+    def build_item(self, item, menu):
+        self.sprites[item].render(self.originator, 0, 0, menu, item)
 
     def build_menu(self, menu=MENU_DEFAULT, display="none", extra=EL):
         #print ("build_menu:", self.gui.div)
