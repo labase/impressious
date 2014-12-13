@@ -25,13 +25,13 @@ Verifica a funcionalidade do cliente web.
 
 """
 import unittest
-from impressious.core import Impressious, Slide, LOREM, DIM
+from impressious.core import Impressious, Slide, Sprite, Menu, LOREM, DIM, GUI
 from impressious import main
 import sys
 if sys.version_info[0] == 2:
-    from mock import MagicMock, patch
+    from mock import MagicMock, patch, ANY
 else:
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import MagicMock, patch, ANY
 WIKI = "https://activufrj.nce.ufrj.br/rest/wiki/activlets/Provas_2014_2"
 WCONT = '{"status": 0, "result": {"wikidata": {"conteudo": "<h1>Carlo Emmanoel Tolla de Oliveira<\/h1><ol>' \
     '<li>Society is intrinsically<\/li><li> responsible for capitalism; says Sartre;<\/li>' \
@@ -79,7 +79,30 @@ class ImpressiousTest(unittest.TestCase):
         self.gui.assert_called_with(width=800, height=600)
         self.assertEqual(imp.gui, self.gui)
         self.assertIsInstance(imp.svgcanvas, MagicMock, "Svgcanvas is not as expected: %s" % imp.svgcanvas)
-        imp.svgcanvas.__le__.assert_called_with(self.gui.html.DIV())
+        imp.svgcanvas.__le__.assert_called_with(self.gui.g)
+
+    def test_menu(self):
+        """cria o menu do aplicativo"""
+        self.app.build_base()
+        self.assertIs(self.app.div, self.gui)
+        lclick = lambda e: self.gui.click()
+        # menu = dict(dash=dict(save=lclick, load=lclick))
+        menu = dict(save=lclick, load=lclick)
+        icon = Sprite("test.jpg", 37, 43, 12, 10, 2)
+        icons = icon.sprites(dash=[4, 1], save=[0, 0], load=[0, 0])
+        render = MagicMock(name="render")
+        style = {'border': '1px solid #d0d0d0', 'left': '0', 'bottom': '0', 'position': 'absolute',
+                 'width': '37px', 'height': '86px', 'top': '0', 'display': "none", 'margin': 'auto'}
+
+        with patch("impressious.core.Sprite.render") as render:
+            self.app.build_menu(menu, icons)
+            self.gui.html.DIV.assert_called_with(Id='divdash', style=style, Class='deafault')
+
+            icon.render.assert_called_with(ANY, 0, 0, ANY, list(menu.keys())[1])
+        m = self.app.menu
+        self.assertIn("dash", Menu.MENU)
+        self.assertIsInstance(Menu.MENU["dash"].menu, MagicMock)
+        self.assertIsInstance(m, Menu, "Menu is not as expected: %s" % m)
 
     def test_slide(self):
         """cria um slide com texto"""
@@ -133,7 +156,7 @@ class ImpressiousTest(unittest.TestCase):
     def test_select_slide_and_switch_cursor(self):
         """Seleciona um slide e troca o cursor que estava em outro slide"""
         self.app.build_base()
-        l = self.app.load_slides_from_wiki(['Society is intrinsically<\/li>','Society is intrinsically<\/li>'])
+        l = self.app.load_slides_from_wiki(['Society is intrinsically<\/li>', 'Society is intrinsically<\/li>'])
         self.assertEqual(2, len(l), "list is not as expected: %s" % l)
         self.app.SLIDES[0]._select(None)
         self.app.SLIDES[1]._select(None)
@@ -171,7 +194,8 @@ class ImpressiousTest(unittest.TestCase):
 
         self.app.cursor._move(self.EV)
         self.assertEqual(self.app.cursor._mouse_pos, (84, 84), "but mouse pos is %d %d " % self.app.cursor._mouse_pos)
-        self.assertEqual(self.app.SLIDES[0].dimension, (222, 180), "but slide pos is %d %d " % self.app.SLIDES[0].position)
+        self.assertEqual(self.app.SLIDES[0].dimension, (222, 180),
+                         "but slide pos is %d %d " % self.app.SLIDES[0].position)
         #self.assertEqual(self.gui.svg.g.mock_calls, [], "but slide pos is %s " % self.gui.svg.g.mock_calls)
         self.gui.svg.rect().setAttribute.assert_called_with('width', "222")
 

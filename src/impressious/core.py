@@ -123,39 +123,53 @@ class Impressious:
         self.svg = navegador.svg
         self.html = navegador.html
         self.ajax = navegador.ajax
-        self.svgcanvas = self.cursor = self.icon = self.menu = self.back = None
+        self.svgcanvas = self.cursor = self.icon = self.menu = self.back = self.div = None
         self.load = self.save = lambda ev: None
         self.dim = (800, 600)
+
+    def build_menu(self, menu=None, icon=None, item="dash"):
+        """Constrói o menu da aplicação.
+
+        :return: Self, referência a este objeto
+        """
+        # menu = menu or dict(dash=dict(load={"img%s" % gab: self.load for gab in range(50)}, save=self.save))
+        loader = lambda ev, img, b=0: self.ad_template(ev)
+        menu = menu or dict(load={"img%s" % gab: loader for gab in range(50)}, save=self.save)
+        self.icon = icon or Sprite(ICON, 37, 43, 12, 10, 2).sprites(
+            dash=[4, 1], save=[0, 0], load=[6, 2],
+            **{"img%s" % gab: [MENUPX % gab] for gab in range(50)})
+        self.menu = Menu(self.icon, self.div, item, menu)
+        self.menu.show(0, 0)
+        return self
 
     def build_base(self, width=800, height=600):
         """Constrói as partes do Jogo.
 
         :return: Self, referência a este objeto
         """
-        python_div = self.gui.document['pydiv']
+        python_div = self.div = self.gui.document['pydiv']
         self.dim = width, height
         self.svgcanvas = self.svg.svg(width=width, height=height)
         python_div <= self.svgcanvas
         self.back = self.svg.g()
         self.svgcanvas <= self.back
-        menu = dict(main=dict(load={"img%s" % gab: self.load for gab in range(50)}, save=self.save))
-        #self.menu = Menu()
-        self.icon = Sprite(ICON, 37, 43, 12, 10, 2).sprites(main=[4, 1], save=[0, 0], load=[0, 2])
-        self.icon["main"].render(python_div, 2, 0, self.ad_template, "img50")
-        self.icon["save"].render(python_div, 2, 40)
-        self.icon["load"].render(python_div, 2, 80)
+        #self.menu = Menu(self.icon, python_div, display=False, **menu)
+        # self.icon["main"].render(python_div, 2, 0, self.ad_template, "img50")
+        # self.icon["save"].render(python_div, 2, 40)
+        # self.icon["load"].render(python_div, 2, 80)
         return self
+
+    def dash(self, ev):
+        self.menu['dash'].show()
 
     def _process_arguments(self, gui):
 
         def set_prop(value):
             self.props = self.json.loads(value)['result']
-            self.pmenu = Menu(self.gui, 'ad_objeto', menu=self.props, prefix=MENUITEM, command='', extra=[MARKER])
             print('set_prop', self.props)
 
         def set_scene(value):
             self.scene = self.json.loads(value)['result']
-            self.smenu = Menu(self.gui, 'ad_cenario', menu=self.scenes, prefix=MENUITEM, command='')
             print('set_scene', self.scene)
 
         args = self.win.location.search
@@ -254,12 +268,13 @@ class Impressious:
             self.cursor.setAttribute(s, 'transform', "translate (%d %d)" % p)
 
     def ad_template(self, template):
-        FAKESVG = '<g>%s</g>' % ['<rect style="fill:red" x="%d" y="9" width="9" height="9" />' % x for x in range(10)]
+        FAKESVG = '<g>%s</g>' % '\n'.join(
+            ['<rect x="%d" y="9" width="9" height="9" color="red"></rect>' % (x*10) for x in range(10)])
         try:
             import urllib.request
             import json
-            _fp = urllib.request.urlopen(MENUFPX % template.target.id[3:])
-            print("ad_template", _fp)
+            _fp = urllib.request.urlopen(MENUFPX % template.target.id)
+            print("ad_template", template.target.id)
             if isinstance(_fp, tuple):
                 _fp = _fp[0]
             _data = _fp.read()
@@ -269,7 +284,7 @@ class Impressious:
         #_data = _data.split('<g')[1].split('</g>')[0]
         #close_g_tag = _data.find(">")
         #_data = _data[close_g_tag+1:]
-        print("ad_template _data", _data)
+        print("ad_template _data", template.target.id, MENUFPX % template.target.id, _data)
 
         self.back.html = _data
 
@@ -350,52 +365,71 @@ class Cursor:
         self.cursor.setAttribute(attr, value)
 
 MENUPX = "http://www.corsproxy.com/activufrj.nce.ufrj.br/static/desenhos/img%s.png"
-MENUFPX = "http://www.corsproxy.com/activufrj.nce.ufrj.br/static/desenhos/img%s.svg"
+MENUFPX = "http://www.corsproxy.com/activufrj.nce.ufrj.br/static/desenhos/%s.svg"
 EL, ED = [], {}
 MENU_DEFAULT = ['ad_objeto', 'ad_cenario', 'wiki', 'navegar', 'jeppeto']
 
 
 class Menu:
     MENU = {}
+    ORIGIN = None
+    SPRITES = None
 
-    def __init__(self, sprites, originator=None, **menu):
-        self.sprites, self.originator = sprites, originator
-        Id = self.Id = menu.keys()[0]
-        self.action = self.build_item(Id, menu[Id])
+    def __init__(self, sprites, originator, item, menu):
+        Menu.SPRITES, Menu.ORIGIN, self.menus = sprites, originator, None
+        self.menu = self.div = self.originator = None
+        self.build_menu(originator, item, menu)
 
-    def __no__init__(self, gui, originator=None, menu=None, command='menu_',
-                 prefix=MENUPX, event="click", activate=False, extra=EL):
-        self.gui, self.item, self.prefix = gui, originator, prefix
-        self.command, self.prefix, self.activated = command, prefix, activate
-        self.originator = originator or "__ROOT__"
-        self.book = self.gui.doc["book"]
-        self.target, self.id, self.menu = self, '', None
-        menu and self.build_menu(menu, extra=extra)
+    def build_item(self, originator, item, action, display=False):
+        action = lambda e, i='': self.click(e, i, action)
+        return Menu.SPRITES[item].render(originator, 0, 0, action, item)
 
-    def build_item(self, item, menu):
-        self.sprites[item].render(self.originator, 0, 0, menu, item)
+    def build_menu(self, originator, item, menu, display=False):
 
-    def build_menu(self, menu=MENU_DEFAULT, display="none", extra=EL):
-        #print ("build_menu:", self.gui.div)
-        Menu.MENU[self.originator] = self
-        self.menu = self.gui.div(
-            self.gui.doc, s_position='absolute', s_top='50%', s_left='50%',
-            s_display=display, s_border='1px solid #d0d0d0', o_Id=self.item)
-        #print ('build_menu', [self.comm[kwargs['o_click']] for kwargs in menu])
-        [self.build_item(item, EXTRA % item, self) for item in extra]
-        [self.build_item(item, self.prefix % item, self) for item in menu]
+        class Item(Menu):
+            def __init__(self, originator, item, action):
+                self.originator = originator
+                self.menu = self.build_item(originator, item, action)
+
+        class SubMenu(Menu):
+            def __init__(self, originator, item, menu):
+                self.originator = originator
+                self.menu = self.build_menu(originator, item, menu)
+
+        SUBS = [Item, SubMenu]
+        Menu.MENU[item] = self
+        dim = len(list(menu.items()))
+        w = (dim//10) or 1
+        h = dim//w or 1
+        print("build_menu: ", item, dim)
+        self.menu = self.build_item(originator, item, self.popup)
+        self.div = Menu.SPRITES[item].render_div(Menu.ORIGIN, w, h, self.click, item, display)
+        self.menus = [SUBS[isinstance(action, dict)](self.div, item, action) for item, action in menu.items()]
         return self.menu
 
-    def click(self, event):
+    def show(self, x=None, y=None):
+        if x is not None:
+            self.menu.style.position = "absolute"
+            self.menu.style.top = y
+            self.menu.style.left = x
+
+        self.menu.style.display = "block"
+
+    def click(self, event, oid='', action=lambda e: None):
         event.stopPropagation()
         event.preventDefault()
-        self.menu.style.display = 'none'
+        if self.originator:
+            self.originator.style.display = 'none'
         menu_id = event.target.id[2:]
-        item = menu_id in Menu.MENU and menu_id or self.item
-        obj = menu_id in Menu.MENU and Menu.MENU[menu_id] or self
-        #self.activate(self.command or self.item, event, obj)
-        print('click:', menu_id, self.command + item, self.menu.Id, self.prefix)  # , self.item, item)
-        self.activate(self.command + item, event, obj)
+        print('click:', menu_id)  # , self.item, item)
+        action(event, oid)
+
+    def popup(self, event, oid):
+        event.stopPropagation()
+        event.preventDefault()
+        self.div.style.display = 'block'
+        menu_id = event.target.id[2:]
+        print('popup:', menu_id, oid)
 
 
 class Sprite:
@@ -425,13 +459,24 @@ class Sprite:
         :param kwargs: lista de argumentos da forma nome_do_sprite=[sprite_x, sprite_y]
         :return: o dicionário SPRITE
         """
-        def cut_sprite(name, x, y):
+        class Image(Sprite):
+            def render(self, element, x=0, y=0, action=None, Id="", display=True):
+                style = dict(width="%dpx" % self.dx, margin="%dpx" % self.padx)
+                img = GUI.html.IMG(Id=Id or "spr%s" % self.Id, src=self.img, style=style)
+                img.onclick = lambda ev: action(ev, self.Id) if action else lambda ev: None
+                element <= img
+                return img
+
+
+        def cut_sprite(name, x, y=0):
+            if isinstance(x, str):
+                return Image(x, self.dx, self.dy, self.offx, self.offy, self.padx, self.pady, 0, y, name)
             return Sprite(self.img, self.dx, self.dy, self.offx, self.offy, self.padx, self.pady, x, y, name)
 
         Sprite.SPRITE.update({name: cut_sprite(name, *coordinates) for name, coordinates in kwargs.items()})
         return Sprite.SPRITE
 
-    def render(self, element, x=0, y=0, action=None, Id=""):
+    def render(self, element, x=0, y=0, action=None, Id="", display=True):
         """Desenha um sprite no elemento dado
 
         :param element: elemento onde o sprite vai ser desenhado
@@ -443,7 +488,8 @@ class Sprite:
         """
         self.menu = GUI.html.DIV(Id=Id or "spr%s" % self.Id)
         self.menu.style.backgroundImage = "url(%s)" % self.img
-        self.menu.style.position = "absolute"
+        #self.menu.style.position = "absolute"
+        self.menu.style.display = "block" if display else "none"
         top = self.offy + self.y*self.dy + self.pady
         left = self.offx + self.x*self.dx + self.padx
         print(self.img, self.dx, self.dy, self.offx, self.offy, self.padx, self.pady, x, y, top, left)
@@ -454,3 +500,22 @@ class Sprite:
         self.menu.style.backgroundPosition = "-%dpx -%dpx" % (left, top)
         self.menu.onclick = action if action else lambda ev: None
         element <= self.menu
+        return self.menu
+
+    def render_div(self, element, w=0, h=0, action=None, Id="", display=False):
+        css_display = "block" if display else "none"
+        div = self.div(
+            s_position='absolute', s_top='0', s_bottom='0', s_margin="auto", s_left='0', s_width='%dpx' % (w*self.dx),
+            s_height='%dpx' % (h*self.dy), s_display=css_display, s_border='1px solid #d0d0d0', o_Id="div"+Id)
+        element <= div
+        div.onclick = action if action else lambda ev: None
+        return div
+
+    def _filter(self, args):
+        #print(args)
+        return {k[2:]: value for k, value in args.items() if k[:2] in "s_"}
+
+    def div(self, o_place=None, o_Id=None, o_Class='deafault', **kwargs):
+        print("Sprite div:", GUI, kwargs, self._filter(kwargs))
+        return GUI.html.DIV(
+            Id=o_Id, Class=o_Class, style=self._filter(kwargs))
